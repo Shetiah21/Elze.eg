@@ -58,6 +58,13 @@ class Router
             if (preg_match($pattern, $path, $matches)) {
                 // Filter out integer-keyed entries from named capture groups
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
+                
+                // Robustness fallback: if no named parameters found, pass numeric capture groups (excluding the full match index 0)
+                if (empty($params)) {
+                    array_shift($matches); // Remove index 0 (full match)
+                    $params = array_values($matches);
+                }
+                
                 return $this->executeHandler($handler, $params);
             }
         }

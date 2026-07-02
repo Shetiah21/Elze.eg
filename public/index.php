@@ -56,10 +56,12 @@ $router->get('/logout', [\App\Controllers\AuthController::class, 'logout']);
 // Dashboard Route
 $router->get('/dashboard', [\App\Controllers\DashboardController::class, 'index']);
 
+// Product Catalog Routes
+$router->get('/products', [\App\Controllers\ProductController::class, 'index']);
+// Detail route with slug (using the router's placeholder syntax)
+$router->get('/products/{slug}', [\App\Controllers\ProductController::class, 'detail']);
+
 // Placeholder routes (replaced in later phases)
-$router->get('/products', function() {
-    echo "<h1 style='font-family:sans-serif;padding:40px'>Products Grid Page</h1><p style='padding:0 40px'>Phase 3 coming soon. <a href='" . APP_BASE_PATH . "/'>← Home</a></p>";
-});
 $router->get('/cart', function() {
     echo "<h1 style='font-family:sans-serif;padding:40px'>Shopping Cart</h1><p style='padding:0 40px'>Phase 4 coming soon. <a href='" . APP_BASE_PATH . "/'>← Home</a></p>";
 });
