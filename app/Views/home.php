@@ -6,7 +6,7 @@
         <h1 class="hero-title">Elevate Your Daily Wear</h1>
         <p class="hero-description">Discover our carefully crafted collection of premium ringer t-shirts, knitted polos, and everyday staples made from fine local cotton.</p>
         <div class="hero-actions">
-            <a href="/Elze.eg/public/products" class="btn btn-primary">Shop Collection</a>
+            <a href="<?= $base ?>/products" class="btn btn-primary">Shop Collection</a>
             <a href="#categories" class="btn btn-outline-white">Explore Categories</a>
         </div>
     </div>
@@ -60,7 +60,7 @@
         <div class="category-grid">
             
             <!-- Category 1: T-Shirts -->
-            <a href="/Elze.eg/public/products?category=t-shirts" class="category-card">
+            <a href="<?= $base ?>/products?category=t-shirts" class="category-card">
                 <div class="category-bg" style="background-color: #12104a;"></div>
                 <div class="category-overlay"></div>
                 <div class="category-info">
@@ -70,7 +70,7 @@
             </a>
 
             <!-- Category 2: Ringer T-Shirts -->
-            <a href="/Elze.eg/public/products?category=ringer-t-shirts" class="category-card">
+            <a href="<?= $base ?>/products?category=ringer-t-shirts" class="category-card">
                 <div class="category-bg" style="background-color: #1a1768;"></div>
                 <div class="category-overlay"></div>
                 <div class="category-info">
@@ -80,7 +80,7 @@
             </a>
 
             <!-- Category 3: Knitted Polos -->
-            <a href="/Elze.eg/public/products?category=knitted-polos" class="category-card">
+            <a href="<?= $base ?>/products?category=knitted-polos" class="category-card">
                 <div class="category-bg" style="background-color: #0b0933;"></div>
                 <div class="category-overlay"></div>
                 <div class="category-info">
@@ -90,7 +90,7 @@
             </a>
 
             <!-- Category 4: Tops -->
-            <a href="/Elze.eg/public/products?category=tops" class="category-card">
+            <a href="<?= $base ?>/products?category=tops" class="category-card">
                 <div class="category-bg" style="background-color: #1d1973;"></div>
                 <div class="category-overlay"></div>
                 <div class="category-info">

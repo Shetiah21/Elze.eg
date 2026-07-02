@@ -20,7 +20,7 @@ class Config
             ],
             'app' => [
                 'name' => 'Elze.eg',
-                'url' => 'http://localhost/Elze.eg',
+                'url' => 'http://localhost:8080/Elze.eg/public',
                 'base_path' => dirname(dirname(__DIR__)),
                 'env' => 'development'
             ],

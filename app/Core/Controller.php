@@ -15,15 +15,14 @@ abstract class Controller
     }
 
     /**
-     * Helper to redirect to a path
+     * Helper to redirect to a path (e.g. '/login', '/dashboard')
      */
     protected function redirect(string $path): void
     {
-        $url = Config::getInstance()->get('app.url', 'http://localhost/Elze.eg');
-        
-        // Remove duplicate slashes if redirect path contains leading slash
-        $redirectUrl = rtrim($url, '/') . '/' . ltrim($path, '/');
-        
+        // Use the APP_BASE_PATH constant defined in index.php (strips to just the route segment)
+        $base = defined('APP_BASE_PATH') ? APP_BASE_PATH : '';
+        $redirectUrl = $base . '/' . ltrim($path, '/');
+
         header("Location: " . $redirectUrl);
         exit;
     }

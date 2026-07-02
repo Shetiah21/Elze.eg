@@ -42,18 +42,10 @@ class Router
      */
     public function resolve(string $requestUri, string $requestMethod)
     {
-        // Strip query parameters
-        $path = parse_url($requestUri, PHP_URL_PATH);
-        
-        // Strip base directory /Elze.eg/public if running in subfolders
-        $scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
-        $baseDir = dirname($scriptName);
-        
-        // Ensure base directory normalization
-        if ($baseDir !== '/' && strpos($path, $baseDir) === 0) {
-            $path = substr($path, strlen($baseDir));
-        }
-        
+        // Strip query parameters from path
+        $path = parse_url($requestUri, PHP_URL_PATH) ?? '/';
+
+        // Normalize: ensure leading slash, no trailing slash (except root)
         $path = '/' . trim($path, '/');
         $method = strtoupper($requestMethod);
 
@@ -64,9 +56,8 @@ class Router
 
         foreach ($this->routes[$method] as $pattern => $handler) {
             if (preg_match($pattern, $path, $matches)) {
-                // Filter out non-string keys from named capture groups
+                // Filter out integer-keyed entries from named capture groups
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
-                
                 return $this->executeHandler($handler, $params);
             }
         }

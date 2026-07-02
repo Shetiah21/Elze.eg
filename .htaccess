@@ -1,10 +1,9 @@
+Options -Indexes
 <IfModule mod_rewrite.c>
-    RewriteEngine on
-    
-    # Send root requests to public/
-    RewriteRule ^$ public/ [L]
-    
-    # Rewrite other requests to public/ if they do not contain public/ already
+    RewriteEngine On
+    RewriteBase /Elze.eg/
+
+    # If accessing the root or a non-public path, redirect to public/
     RewriteCond %{REQUEST_URI} !^/Elze\.eg/public/
-    RewriteRule ^(.*)$ public/$1 [L]
+    RewriteRule ^(.*)$ public/$1 [L,NC]
 </IfModule>

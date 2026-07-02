@@ -3,6 +3,9 @@ use App\Core\Session;
 $session = Session::getInstance();
 $cartCount = 0; // Placeholder for cart item counts (will bind in later phases)
 $user = $session->get('user');
+
+// Use APP_BASE_PATH if defined (set in index.php), fallback for edge cases
+$base = defined('APP_BASE_PATH') ? APP_BASE_PATH : '/Elze.eg/public';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -17,7 +20,7 @@ $user = $session->get('user');
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;500;700;800;900&display=swap" rel="stylesheet">
     
     <!-- Global CSS -->
-    <link rel="stylesheet" href="/Elze.eg/public/css/main.css">
+    <link rel="stylesheet" href="<?= $base ?>/css/main.css">
 </head>
 <body>
 
@@ -25,8 +28,7 @@ $user = $session->get('user');
     <header class="main-header">
         <div class="header-container">
             <!-- Brand Logo -->
-            <a href="/Elze.eg/public/" class="logo-link">
-                <!-- SVG mimicking the elze.eg italicized, bold, lowercase logo -->
+            <a href="<?= $base ?>/" class="logo-link">
                 <svg viewBox="0 0 120 45" class="brand-logo" width="120" height="45">
                     <text x="0" y="32" font-family="'Outfit', sans-serif" font-weight="900" font-style="italic" font-size="34" fill="#FFFFFF" letter-spacing="-1.5">elze</text>
                 </svg>
@@ -34,22 +36,22 @@ $user = $session->get('user');
 
             <!-- Nav Links -->
             <nav class="main-nav">
-                <a href="/Elze.eg/public/" class="nav-item">Home</a>
-                <a href="/Elze.eg/public/products" class="nav-item">Shop</a>
+                <a href="<?= $base ?>/" class="nav-item">Home</a>
+                <a href="<?= $base ?>/products" class="nav-item">Shop</a>
                 <div class="nav-dropdown">
                     <span class="nav-item dropdown-trigger">Categories</span>
                     <div class="dropdown-content">
-                        <a href="/Elze.eg/public/products?category=t-shirts">T-Shirts</a>
-                        <a href="/Elze.eg/public/products?category=ringer-t-shirts">Ringer T-Shirts</a>
-                        <a href="/Elze.eg/public/products?category=knitted-polos">Knitted Polos</a>
-                        <a href="/Elze.eg/public/products?category=tops">Tops</a>
+                        <a href="<?= $base ?>/products?category=t-shirts">T-Shirts</a>
+                        <a href="<?= $base ?>/products?category=ringer-t-shirts">Ringer T-Shirts</a>
+                        <a href="<?= $base ?>/products?category=knitted-polos">Knitted Polos</a>
+                        <a href="<?= $base ?>/products?category=tops">Tops</a>
                     </div>
                 </div>
             </nav>
 
             <!-- Actions (Cart / Auth / Admin) -->
             <div class="header-actions">
-                <a href="/Elze.eg/public/cart" class="action-item cart-action">
+                <a href="<?= $base ?>/cart" class="action-item cart-action">
                     <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="9" cy="21" r="1"></circle>
                         <circle cx="20" cy="21" r="1"></circle>
@@ -59,13 +61,13 @@ $user = $session->get('user');
                 </a>
                 
                 <?php if ($user): ?>
-                    <a href="/Elze.eg/public/dashboard" class="action-item dashboard-btn">My Account</a>
+                    <a href="<?= $base ?>/dashboard" class="action-item dashboard-btn">My Account</a>
                     <?php if (($user['role'] ?? '') === 'admin'): ?>
-                        <a href="/Elze.eg/public/admin" class="admin-pill">Admin</a>
+                        <a href="<?= $base ?>/admin" class="admin-pill">Admin</a>
                     <?php endif; ?>
-                    <a href="/Elze.eg/public/logout" class="action-item logout-link">Logout</a>
+                    <a href="<?= $base ?>/logout" class="action-item logout-link">Logout</a>
                 <?php else: ?>
-                    <a href="/Elze.eg/public/login" class="btn btn-outline login-btn">Login</a>
+                    <a href="<?= $base ?>/login" class="btn btn-outline login-btn">Login</a>
                 <?php endif; ?>
             </div>
         </div>
@@ -100,10 +102,10 @@ $user = $session->get('user');
             
             <div class="footer-links">
                 <h4>Shop</h4>
-                <a href="/Elze.eg/public/products?category=t-shirts">T-Shirts</a>
-                <a href="/Elze.eg/public/products?category=ringer-t-shirts">Ringer T-Shirts</a>
-                <a href="/Elze.eg/public/products?category=knitted-polos">Knitted Polos</a>
-                <a href="/Elze.eg/public/products?category=tops">Tops</a>
+                <a href="<?= $base ?>/products?category=t-shirts">T-Shirts</a>
+                <a href="<?= $base ?>/products?category=ringer-t-shirts">Ringer T-Shirts</a>
+                <a href="<?= $base ?>/products?category=knitted-polos">Knitted Polos</a>
+                <a href="<?= $base ?>/products?category=tops">Tops</a>
             </div>
 
             <div class="footer-links">
@@ -120,6 +122,6 @@ $user = $session->get('user');
     </footer>
 
     <!-- Global JS -->
-    <script src="/Elze.eg/public/js/app.js"></script>
+    <script src="<?= $base ?>/js/app.js"></script>
 </body>
 </html>

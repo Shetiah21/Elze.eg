@@ -1,10 +1,12 @@
+Options -Indexes
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /Elze.eg/public/
 
-    # If the requested filename is not a directory, and not a file
-    RewriteCond %{REQUEST_FILENAME} !-d
+    # Allow actual files and directories to be served directly
     RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
 
-    # Rewrite all requests to index.php
+    # Route everything else through index.php
     RewriteRule ^(.*)$ index.php [L,QSA]
 </IfModule>

@@ -63,11 +63,19 @@ try {
 
 // Test 4: Database Connection Singleton (Mocked check)
 try {
-    // We don't verify connection actively unless configured, but we check instantiation
     $db1 = Database::getInstance();
-    echo "[SUCCESS] Database Singleton instantiated. Connection requires running MySQL database.\n";
+    echo "[SUCCESS] Database Singleton instantiated.\n";
 } catch (Exception $e) {
     echo "[WARNING] Database instantiation failed (expected if MySQL is offline): " . $e->getMessage() . "\n";
+}
+
+// Test 5: Authentication Class Compilation Check
+try {
+    $userRepo = new \App\Repositories\UserRepository();
+    $authServ = new \App\Services\AuthService($userRepo);
+    echo "[SUCCESS] UserRepository and AuthService compiled and instantiated correctly.\n";
+} catch (Exception $e) {
+    echo "[FAILURE] Auth class verification error: " . $e->getMessage() . "\n";
 }
 
 echo "\n------------------------------------------\n";
