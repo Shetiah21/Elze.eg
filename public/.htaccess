@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # If the requested filename is not a directory, and not a file
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+
+    # Rewrite all requests to index.php
+    RewriteRule ^(.*)$ index.php [L,QSA]
+</IfModule>

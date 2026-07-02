@@ -1,0 +1,10 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine on
+    
+    # Send root requests to public/
+    RewriteRule ^$ public/ [L]
+    
+    # Rewrite other requests to public/ if they do not contain public/ already
+    RewriteCond %{REQUEST_URI} !^/Elze\.eg/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
