@@ -117,6 +117,8 @@ $router->post('/admin/products/{id}/variants/delete/{variantId}', [\App\Controll
 $router->get('/admin/orders', [\App\Controllers\AdminOrderController::class, 'index']);
 $router->get('/admin/orders/{id}', [\App\Controllers\AdminOrderController::class, 'detail']);
 $router->post('/admin/orders/{id}', [\App\Controllers\AdminOrderController::class, 'detail']);
+$router->post('/admin/orders/{id}/accept', [\App\Controllers\AdminOrderController::class, 'accept']);
+$router->post('/admin/orders/{id}/reject', [\App\Controllers\AdminOrderController::class, 'reject']);
 
 // Admin Coupons
 $router->get('/admin/coupons', [\App\Controllers\AdminCouponController::class, 'index']);

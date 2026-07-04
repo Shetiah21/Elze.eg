@@ -137,20 +137,34 @@ try {
     $item1->total_price = 1050.00;
     $item1->save();
 
-    // Trigger OrderPlacedEvent
+    // Trigger OrderPlacedEvent (inventory deferred to admin accept; notification still fires)
     echo "Dispatching OrderPlacedEvent...\n";
     $event = new OrderPlacedEvent($order, [$item1]);
     $dispatcher->dispatch($event);
 
-    // Verify stock was decremented: initial stock - 3
+    // Stock is NOT deducted on placement — verify unchanged
     $stmt = $db->prepare("SELECT stock FROM product_variants WHERE id = :id");
     $stmt->execute(['id' => $variantId]);
-    $newStock = (int)$stmt->fetch()['stock'];
-    
-    if ($newStock !== ($initialStock - 3)) {
-        throw new Exception("InventoryObserver failed. Expected stock to be " . ($initialStock - 3) . ", got {$newStock}");
+    $stockAfterPlace = (int)$stmt->fetch()['stock'];
+    if ($stockAfterPlace !== $initialStock) {
+        throw new Exception("Stock should not be deducted on order placement. Expected {$initialStock}, got {$stockAfterPlace}");
     }
-    echo "[SUCCESS] InventoryObserver decremented stock correctly.\n";
+    echo "[SUCCESS] Inventory deferred until admin accepts order.\n";
+
+    // Reset to pending for accept workflow test
+    $order->status = 'pending';
+    $order->save();
+
+    // Accept order via OrderManagementService to deduct stock
+    $orderMgmt = new \App\Services\OrderManagementService();
+    $orderMgmt->acceptOrder((int)$order->id);
+
+    $stmt->execute(['id' => $variantId]);
+    $newStock = (int)$stmt->fetch()['stock'];
+    if ($newStock !== ($initialStock - 3)) {
+        throw new Exception("Stock deduction on accept failed. Expected " . ($initialStock - 3) . ", got {$newStock}");
+    }
+    echo "[SUCCESS] OrderManagementService decremented stock on accept.\n";
 
     // Verify mock email was logged
     echo "Verifying email invoice receipt logged to mail.log...\n";

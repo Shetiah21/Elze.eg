@@ -4,11 +4,20 @@ namespace App\Controllers;
 
 use App\Core\AdminController;
 use App\Models\Order;
+use App\Services\OrderManagementService;
+use Exception;
 use PDO;
 
 class AdminOrderController extends AdminController
 {
     private array $validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    private OrderManagementService $orderService;
+
+    public function __construct()
+    {
+        parent::__construct();
+        $this->orderService = new OrderManagementService();
+    }
 
     public function index(): void
     {
@@ -27,9 +36,11 @@ class AdminOrderController extends AdminController
             $params['status'] = $status;
         }
 
-        $sql .= " ORDER BY o.created_at DESC";
+        $sql .= " ORDER BY FIELD(o.status, 'pending', 'processing', 'shipped', 'delivered', 'cancelled'), o.created_at DESC";
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
+
+        $pendingCount = (int) $this->db->query("SELECT COUNT(*) FROM orders WHERE status = 'pending'")->fetchColumn();
 
         $this->renderAdmin('admin/orders/index', [
             'title' => 'Orders | Admin',
@@ -37,6 +48,7 @@ class AdminOrderController extends AdminController
             'orders' => $stmt->fetchAll(PDO::FETCH_ASSOC),
             'current_status' => $status,
             'statuses' => $this->validStatuses,
+            'pending_count' => $pendingCount,
         ]);
     }
 
@@ -49,23 +61,9 @@ class AdminOrderController extends AdminController
             $this->redirect('/admin/orders');
         }
 
-        $userStmt = $this->db->prepare("SELECT id, name, email FROM users WHERE id = :id");
-        $userStmt->execute(['id' => $order->user_id]);
-        $customer = $userStmt->fetch(PDO::FETCH_ASSOC);
-
-        $addrStmt = $this->db->prepare("SELECT * FROM addresses WHERE id = :id");
-        $addrStmt->execute(['id' => $order->shipping_address_id]);
-        $address = $addrStmt->fetch(PDO::FETCH_ASSOC);
-
-        $itemsStmt = $this->db->prepare("
-            SELECT oi.*, p.name AS product_name, pv.size, pv.color
-            FROM order_items oi
-            JOIN products p ON p.id = oi.product_id
-            LEFT JOIN product_variants pv ON pv.id = oi.variant_id
-            WHERE oi.order_id = :order_id
-        ");
-        $itemsStmt->execute(['order_id' => $id]);
-        $items = $itemsStmt->fetchAll(PDO::FETCH_ASSOC);
+        $customer = $this->fetchCustomer($order->user_id);
+        $address = $this->fetchAddress($order->shipping_address_id);
+        $items = $this->fetchOrderItems((int) $id);
 
         if ($this->isPost()) {
             $this->validateCsrf();
@@ -73,16 +71,12 @@ class AdminOrderController extends AdminController
             $newStatus = $data['status'] ?? '';
             $tracking = trim($data['tracking_number'] ?? '');
 
-            if (!in_array($newStatus, $this->validStatuses, true)) {
-                $this->session->setFlash('error', 'Invalid order status.');
-                $this->redirect('/admin/orders/' . $id);
+            try {
+                $this->orderService->updateStatus((int) $id, $newStatus, $tracking);
+                $this->session->setFlash('success', 'Order updated successfully.');
+            } catch (Exception $e) {
+                $this->session->setFlash('error', $e->getMessage());
             }
-
-            $order->status = $newStatus;
-            $order->tracking_number = $tracking !== '' ? $tracking : null;
-            $order->save();
-
-            $this->session->setFlash('success', 'Order updated successfully.');
             $this->redirect('/admin/orders/' . $id);
         }
 
@@ -93,7 +87,84 @@ class AdminOrderController extends AdminController
             'customer' => $customer,
             'address' => $address,
             'items' => $items,
-            'statuses' => $this->validStatuses,
+            'allowed_transitions' => $this->orderService->getAllowedTransitions($order->status),
         ]);
+    }
+
+    public function accept(string $id): void
+    {
+        $this->requireAdmin();
+        if (!$this->isPost()) {
+            $this->json(['success' => false, 'message' => 'Invalid request method.'], 405);
+        }
+
+        $data = $this->getPostData();
+        if (!$this->session->validateCsrfToken($data['csrf_token'] ?? null)) {
+            $this->json(['success' => false, 'message' => 'CSRF validation failed.'], 403);
+        }
+
+        try {
+            $order = $this->orderService->acceptOrder((int) $id);
+            $this->json([
+                'success' => true,
+                'message' => 'Order accepted and moved to Processing.',
+                'status' => $order->status,
+                'order_id' => $order->id,
+            ]);
+        } catch (Exception $e) {
+            $this->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function reject(string $id): void
+    {
+        $this->requireAdmin();
+        if (!$this->isPost()) {
+            $this->json(['success' => false, 'message' => 'Invalid request method.'], 405);
+        }
+
+        $data = $this->getPostData();
+        if (!$this->session->validateCsrfToken($data['csrf_token'] ?? null)) {
+            $this->json(['success' => false, 'message' => 'CSRF validation failed.'], 403);
+        }
+
+        try {
+            $order = $this->orderService->rejectOrder((int) $id);
+            $this->json([
+                'success' => true,
+                'message' => 'Order has been rejected and cancelled.',
+                'status' => $order->status,
+                'order_id' => $order->id,
+            ]);
+        } catch (Exception $e) {
+            $this->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    private function fetchCustomer(int $userId): ?array
+    {
+        $stmt = $this->db->prepare("SELECT id, name, email FROM users WHERE id = :id");
+        $stmt->execute(['id' => $userId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    private function fetchAddress(int $addressId): ?array
+    {
+        $stmt = $this->db->prepare("SELECT * FROM addresses WHERE id = :id");
+        $stmt->execute(['id' => $addressId]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    private function fetchOrderItems(int $orderId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT oi.*, p.name AS product_name, pv.size, pv.color
+            FROM order_items oi
+            JOIN products p ON p.id = oi.product_id
+            LEFT JOIN product_variants pv ON pv.id = oi.variant_id
+            WHERE oi.order_id = :order_id
+        ");
+        $stmt->execute(['order_id' => $orderId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }
