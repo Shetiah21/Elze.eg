@@ -1,7 +1,8 @@
 <?php
 use App\Core\Session;
 $session = Session::getInstance();
-$cartCount = 0; // Placeholder for cart item counts (will bind in later phases)
+$cartService = new \App\Services\CartService();
+$cartCount = $cartService->getCartCount();
 $user = $session->get('user');
 
 // Use APP_BASE_PATH if defined (set in index.php), fallback for edge cases

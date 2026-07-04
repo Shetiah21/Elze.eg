@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Repositories\UserRepositoryInterface;
 use App\Models\User;
 use App\Core\Session;
+use App\Services\MockMailLogger;
 use Exception;
 
 class AuthService
@@ -43,8 +44,11 @@ class AuthService
 
         // 4. Save to database
         if ($this->userRepository->save($user)) {
-            // 5. Send mock verification email
-            $this->logMockEmail($email, "Elze.eg Verification Code", "Hi {$name},\n\nWelcome to Elze.eg. Please verify your account using the 6-digit code: {$otp}\nThis code will expire in 15 minutes.");
+            MockMailLogger::log(
+                $email,
+                'Elze.eg Verification Code',
+                "Hi {$name},\n\nWelcome to Elze.eg. Please verify your account using the 6-digit code: {$otp}\nThis code will expire in 15 minutes."
+            );
             return true;
         }
 
@@ -92,7 +96,11 @@ class AuthService
         $user->otp_expires_at = date('Y-m-d H:i:s', strtotime('+15 minutes'));
 
         if ($this->userRepository->save($user)) {
-            $this->logMockEmail($email, "Elze.eg New Verification Code", "Hi {$user->name},\n\nYour new verification code is: {$otp}\nThis code will expire in 15 minutes.");
+            MockMailLogger::log(
+                $email,
+                'Elze.eg New Verification Code',
+                "Hi {$user->name},\n\nYour new verification code is: {$otp}\nThis code will expire in 15 minutes."
+            );
             return true;
         }
         return false;
@@ -180,7 +188,11 @@ class AuthService
         $user->otp_expires_at = date('Y-m-d H:i:s', strtotime('+15 minutes'));
 
         if ($this->userRepository->save($user)) {
-            $this->logMockEmail($email, "Elze.eg Password Reset OTP", "Hi {$user->name},\n\nWe received a request to reset your password. Use the 6-digit code below to proceed:\n\n{$otp}\n\nIf you did not request this, you can ignore this email.");
+            MockMailLogger::log(
+                $email,
+                'Elze.eg Password Reset OTP',
+                "Hi {$user->name},\n\nWe received a request to reset your password. Use the 6-digit code below to proceed:\n\n{$otp}\n\nIf you did not request this, you can ignore this email."
+            );
             return true;
         }
         return false;
@@ -242,25 +254,6 @@ class AuthService
      */
     private function generateOtpCode(): string
     {
-        return (string)rand(100000, 999999);
-    }
-
-    /**
-     * Log verification codes to a local file for mock testing
-     */
-    private function logMockEmail(string $to, string $subject, string $body): void
-    {
-        $logDir = dirname(dirname(__DIR__)) . '/storage/logs';
-        if (!file_exists($logDir)) {
-            mkdir($logDir, 0777, true);
-        }
-
-        $logFile = $logDir . '/mail.log';
-        $timestamp = date('Y-m-d H:i:s');
-        $divider = str_repeat('-', 50) . "\n";
-        
-        $logContent = "Timestamp: {$timestamp}\nTo: {$to}\nSubject: {$subject}\nMessage:\n{$body}\n" . $divider;
-        
-        file_put_contents($logFile, $logContent, FILE_APPEND);
+        return (string) random_int(100000, 999999);
     }
 }

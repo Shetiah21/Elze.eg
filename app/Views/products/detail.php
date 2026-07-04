@@ -16,6 +16,13 @@ $colorHex = [
 
 $isGradient = fn($c) => str_contains($c, 'ra2aba');
 $stockMapJson = json_encode($stockMap ?? []);
+$variantIdMap = [];
+if (!empty($variants)) {
+    foreach ($variants as $v) {
+        $variantIdMap[$v['color']][$v['size']] = (int)$v['id'];
+    }
+}
+$variantIdMapJson = json_encode($variantIdMap);
 ?>
 
 <div class="product-detail-page">
@@ -256,11 +263,12 @@ $stockMapJson = json_encode($stockMap ?? []);
 
 <!-- Variant stock map for JS -->
 <script>
-const STOCK_MAP    = <?= $stockMapJson ?>;
-const BASE_PRICE   = <?= (float)$product['base_price'] ?>;
-let selectedColor  = null;
-let selectedSize   = null;
-let currentQty     = 1;
+const STOCK_MAP      = <?= $stockMapJson ?>;
+const VARIANT_ID_MAP = <?= $variantIdMapJson ?>;
+const BASE_PRICE     = <?= (float)$product['base_price'] ?>;
+let selectedColor    = null;
+let selectedSize     = null;
+let currentQty       = 1;
 
 function selectColor(color, el) {
     selectedColor = color;
@@ -295,16 +303,66 @@ function changeQty(delta) {
 function addToCart(productId) {
     const err = document.getElementById('variant-error');
     if (!selectedColor || !selectedSize) {
+        err.textContent = 'Please select a color and size before adding to cart.';
         err.style.display = 'block';
         setTimeout(() => err.style.display = 'none', 3000);
         return;
     }
+    
+    // Find matching variant ID
+    const variantId = VARIANT_ID_MAP[selectedColor] ? VARIANT_ID_MAP[selectedColor][selectedSize] : null;
+    if (!variantId) {
+        err.textContent = 'Selected variant is not available.';
+        err.style.display = 'block';
+        setTimeout(() => err.style.display = 'none', 3000);
+        return;
+    }
+
     err.style.display = 'none';
-    // Cart AJAX request will be wired in Phase 4
-    const btn = document.getElementById('add-cart-btn');
-    btn.textContent = 'Added ✓';
-    btn.classList.add('added');
-    setTimeout(() => { btn.textContent = 'Add to Cart'; btn.classList.remove('added'); }, 2000);
+
+    // Submit AJAX post
+    fetch('<?= $base ?>/cart/add', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            variant_id: variantId,
+            quantity: currentQty
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const btn = document.getElementById('add-cart-btn');
+            btn.textContent = 'Added ✓';
+            btn.classList.add('added');
+            
+            // Update cart badge count
+            const badge = document.getElementById('cart-badge-count');
+            if (badge) {
+                badge.textContent = data.cart_count;
+                if (data.cart_count > 0) {
+                    badge.style.display = 'block';
+                }
+            }
+
+            setTimeout(() => { 
+                btn.textContent = 'Add to Cart'; 
+                btn.classList.remove('added'); 
+            }, 2000);
+        } else {
+            err.textContent = data.error || 'Failed to add item to cart.';
+            err.style.display = 'block';
+            setTimeout(() => err.style.display = 'none', 5000);
+        }
+    })
+    .catch(error => {
+        console.error('Add to cart error:', error);
+        err.textContent = 'An error occurred. Please try again.';
+        err.style.display = 'block';
+        setTimeout(() => err.style.display = 'none', 5000);
+    });
 }
 
 function switchImage(src, thumb) {

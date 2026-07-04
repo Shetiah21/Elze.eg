@@ -6,8 +6,8 @@
         <aside class="dashboard-sidebar">
             <nav class="sidebar-nav">
                 <a href="<?= $base ?>/dashboard" class="sidebar-link <?= ($active_tab === 'profile') ? 'active' : '' ?>">Profile Management</a>
-                <a href="#" class="sidebar-link">Order History</a>
-                <a href="#" class="sidebar-link">Saved Addresses</a>
+                <a href="<?= $base ?>/dashboard/orders" class="sidebar-link <?= ($active_tab === 'orders') ? 'active' : '' ?>">Order History</a>
+                <a href="<?= $base ?>/dashboard/addresses" class="sidebar-link <?= ($active_tab === 'addresses') ? 'active' : '' ?>">Saved Addresses</a>
                 <a href="<?= $base ?>/logout" class="sidebar-link" style="color: var(--color-danger); border-top: 1px solid var(--color-grey-border); margin-top: 16px; padding-top: 16px;">Logout</a>
             </nav>
         </aside>

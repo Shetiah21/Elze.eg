@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS orders (
     payment_status ENUM('pending', 'paid', 'failed') DEFAULT 'pending',
     shipping_address_id INT NOT NULL,
     tracking_number VARCHAR(100) NULL,
+    payment_reference VARCHAR(255) NULL,
     notes TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -149,3 +150,19 @@ CREATE INDEX idx_products_slug ON products(slug);
 CREATE INDEX idx_categories_slug ON categories(slug);
 CREATE INDEX idx_orders_number ON orders(order_number);
 CREATE INDEX idx_variants_prod_id ON product_variants(product_id);
+
+-- 11. Cart Items Table
+CREATE TABLE IF NOT EXISTS cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    variant_id INT NOT NULL,
+    quantity INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_variant (user_id, variant_id)
+) ENGINE=InnoDB;
+
+CREATE INDEX idx_cart_user_id ON cart_items(user_id);
+

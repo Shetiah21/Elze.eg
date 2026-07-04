@@ -11,6 +11,9 @@ class View
      */
     public static function render(string $view, array $data = [], string $layout = 'main'): void
     {
+        // Ensure all views receive the application base path for URL generation
+        $data['base'] = defined('APP_BASE_PATH') ? APP_BASE_PATH : '/Elze.eg/public';
+
         // Extract variables to local scope
         extract($data);
 

@@ -56,15 +56,40 @@ $router->get('/logout', [\App\Controllers\AuthController::class, 'logout']);
 // Dashboard Route
 $router->get('/dashboard', [\App\Controllers\DashboardController::class, 'index']);
 
+// Dashboard Address Book Routes
+$router->get('/dashboard/addresses', [\App\Controllers\DashboardController::class, 'addresses']);
+$router->post('/dashboard/addresses/create', [\App\Controllers\DashboardController::class, 'createAddress']);
+$router->post('/dashboard/addresses/update/{id}', [\App\Controllers\DashboardController::class, 'updateAddress']);
+$router->post('/dashboard/addresses/delete/{id}', [\App\Controllers\DashboardController::class, 'deleteAddress']);
+$router->post('/dashboard/addresses/make-default/{id}', [\App\Controllers\DashboardController::class, 'makeDefaultAddress']);
+
+// Dashboard Order Routes
+$router->get('/dashboard/orders', [\App\Controllers\DashboardController::class, 'orders']);
+$router->get('/dashboard/orders/{id}', [\App\Controllers\DashboardController::class, 'orderDetail']);
+$router->get('/orders/receipt/{id}', [\App\Controllers\DashboardController::class, 'receipt']);
+
 // Product Catalog Routes
 $router->get('/products', [\App\Controllers\ProductController::class, 'index']);
 // Detail route with slug (using the router's placeholder syntax)
 $router->get('/products/{slug}', [\App\Controllers\ProductController::class, 'detail']);
 
-// Placeholder routes (replaced in later phases)
-$router->get('/cart', function() {
-    echo "<h1 style='font-family:sans-serif;padding:40px'>Shopping Cart</h1><p style='padding:0 40px'>Phase 4 coming soon. <a href='" . APP_BASE_PATH . "/'>← Home</a></p>";
-});
+// Shopping Cart Routes
+$router->get('/cart', [\App\Controllers\CartController::class, 'view']);
+$router->post('/cart/add', [\App\Controllers\CartController::class, 'add']);
+$router->post('/cart/update', [\App\Controllers\CartController::class, 'update']);
+$router->post('/cart/remove', [\App\Controllers\CartController::class, 'remove']);
+
+// Checkout Routes
+$router->get('/checkout', [\App\Controllers\CheckoutController::class, 'index']);
+$router->post('/checkout', [\App\Controllers\CheckoutController::class, 'process']);
+$router->post('/coupon/validate', [\App\Controllers\CheckoutController::class, 'validateCoupon']);
+$router->get('/checkout/instapay/{id}', [\App\Controllers\CheckoutController::class, 'instapay']);
+$router->post('/checkout/instapay/verify/{id}', [\App\Controllers\CheckoutController::class, 'verifyInstapay']);
+
+// Bootstrap Event Observers
+$dispatcher = \App\Core\EventDispatcher::getInstance();
+$dispatcher->addListener(\App\Events\OrderPlacedEvent::class, [new \App\Observers\InventoryObserver(), 'handle']);
+$dispatcher->addListener(\App\Events\OrderPlacedEvent::class, [new \App\Observers\NotificationObserver(), 'handle']);
 
 // 6. Dispatch: strip APP_BASE_PATH from REQUEST_URI before resolving
 $requestUri    = $_SERVER['REQUEST_URI'] ?? '/';

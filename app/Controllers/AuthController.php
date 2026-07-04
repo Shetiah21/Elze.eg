@@ -44,6 +44,14 @@ class AuthController extends Controller
 
             try {
                 $this->authService->login($email, $password, $remember);
+                
+                // Merge guest cart items into the database upon login
+                $user = $this->session->get('user');
+                if ($user) {
+                    $cartService = new \App\Services\CartService();
+                    $cartService->mergeSessionCartIntoDb((int)$user['id']);
+                }
+
                 $this->session->setFlash('success', 'Welcome back to Elze.eg!');
                 $this->redirect('/dashboard');
             } catch (Exception $e) {
@@ -87,9 +95,19 @@ class AuthController extends Controller
                 $this->redirect('/register');
             }
 
-            // Simple Form Validations
-            if (empty($name) || empty($email) || empty($password)) {
+            // Server-side form validations
+            if (empty($name) || empty($email) || empty($password) || empty($confirmPassword)) {
                 $this->session->setFlash('error', 'Please fill out all required fields.');
+                $this->redirect('/register');
+            }
+
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->session->setFlash('error', 'Please enter a valid email address.');
+                $this->redirect('/register');
+            }
+
+            if (strlen($password) < 6) {
+                $this->session->setFlash('error', 'Password must be at least 6 characters long.');
                 $this->redirect('/register');
             }
 
