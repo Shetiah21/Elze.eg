@@ -32,6 +32,7 @@ use App\Core\Session;
 
 // Initialize Session Singleton
 $session = Session::getInstance();
+$session->validateActiveSession();
 
 // 5. Initialize Router and Register Routes
 $router = new Router();
@@ -55,6 +56,9 @@ $router->get('/logout', [\App\Controllers\AuthController::class, 'logout']);
 
 // Dashboard Route
 $router->get('/dashboard', [\App\Controllers\DashboardController::class, 'index']);
+$router->get('/dashboard/profile', [\App\Controllers\DashboardController::class, 'profile']);
+$router->get('/dashboard/wishlist', [\App\Controllers\DashboardController::class, 'wishlist']);
+$router->get('/dashboard/settings', [\App\Controllers\DashboardController::class, 'settings']);
 
 // Dashboard Address Book Routes
 $router->get('/dashboard/addresses', [\App\Controllers\DashboardController::class, 'addresses']);
@@ -85,6 +89,47 @@ $router->post('/checkout', [\App\Controllers\CheckoutController::class, 'process
 $router->post('/coupon/validate', [\App\Controllers\CheckoutController::class, 'validateCoupon']);
 $router->get('/checkout/instapay/{id}', [\App\Controllers\CheckoutController::class, 'instapay']);
 $router->post('/checkout/instapay/verify/{id}', [\App\Controllers\CheckoutController::class, 'verifyInstapay']);
+
+// Admin Routes (admin role required — enforced in AdminController)
+$router->get('/admin', [\App\Controllers\AdminDashboardController::class, 'index']);
+
+// Admin Categories
+$router->get('/admin/categories', [\App\Controllers\AdminCatalogController::class, 'categories']);
+$router->get('/admin/categories/create', [\App\Controllers\AdminCatalogController::class, 'createCategory']);
+$router->post('/admin/categories/create', [\App\Controllers\AdminCatalogController::class, 'createCategory']);
+$router->get('/admin/categories/edit/{id}', [\App\Controllers\AdminCatalogController::class, 'editCategory']);
+$router->post('/admin/categories/edit/{id}', [\App\Controllers\AdminCatalogController::class, 'editCategory']);
+$router->post('/admin/categories/delete/{id}', [\App\Controllers\AdminCatalogController::class, 'deleteCategory']);
+
+// Admin Products & Variants
+$router->get('/admin/products', [\App\Controllers\AdminCatalogController::class, 'products']);
+$router->get('/admin/products/create', [\App\Controllers\AdminCatalogController::class, 'createProduct']);
+$router->post('/admin/products/create', [\App\Controllers\AdminCatalogController::class, 'createProduct']);
+$router->get('/admin/products/edit/{id}', [\App\Controllers\AdminCatalogController::class, 'editProduct']);
+$router->post('/admin/products/edit/{id}', [\App\Controllers\AdminCatalogController::class, 'editProduct']);
+$router->post('/admin/products/delete/{id}', [\App\Controllers\AdminCatalogController::class, 'deleteProduct']);
+$router->get('/admin/products/{id}/variants', [\App\Controllers\AdminCatalogController::class, 'variants']);
+$router->post('/admin/products/{id}/variants/create', [\App\Controllers\AdminCatalogController::class, 'createVariant']);
+$router->post('/admin/products/{id}/variants/edit/{variantId}', [\App\Controllers\AdminCatalogController::class, 'editVariant']);
+$router->post('/admin/products/{id}/variants/delete/{variantId}', [\App\Controllers\AdminCatalogController::class, 'deleteVariant']);
+
+// Admin Orders
+$router->get('/admin/orders', [\App\Controllers\AdminOrderController::class, 'index']);
+$router->get('/admin/orders/{id}', [\App\Controllers\AdminOrderController::class, 'detail']);
+$router->post('/admin/orders/{id}', [\App\Controllers\AdminOrderController::class, 'detail']);
+
+// Admin Coupons
+$router->get('/admin/coupons', [\App\Controllers\AdminCouponController::class, 'index']);
+$router->get('/admin/coupons/create', [\App\Controllers\AdminCouponController::class, 'create']);
+$router->post('/admin/coupons/create', [\App\Controllers\AdminCouponController::class, 'create']);
+$router->get('/admin/coupons/edit/{id}', [\App\Controllers\AdminCouponController::class, 'edit']);
+$router->post('/admin/coupons/edit/{id}', [\App\Controllers\AdminCouponController::class, 'edit']);
+$router->post('/admin/coupons/toggle/{id}', [\App\Controllers\AdminCouponController::class, 'toggle']);
+$router->post('/admin/coupons/delete/{id}', [\App\Controllers\AdminCouponController::class, 'delete']);
+
+// Admin Users
+$router->get('/admin/users', [\App\Controllers\AdminUserController::class, 'index']);
+$router->post('/admin/users/toggle/{id}', [\App\Controllers\AdminUserController::class, 'toggleStatus']);
 
 // Bootstrap Event Observers
 $dispatcher = \App\Core\EventDispatcher::getInstance();

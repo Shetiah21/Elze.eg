@@ -112,6 +112,26 @@ class Session
     }
 
     /**
+     * Validate that the current session user is still active (not blocked).
+     * Terminates session immediately if the user was blocked by an admin.
+     */
+    public function validateActiveSession(): void
+    {
+        if (!$this->has('user')) {
+            return;
+        }
+
+        $sessionUser = $this->get('user');
+        $repo = new \App\Repositories\UserRepository();
+        $dbUser = $repo->findById((int) $sessionUser['id']);
+
+        if (!$dbUser || $dbUser->status === 'blocked') {
+            $this->remove('user');
+            $this->setFlash('error', 'Your account has been suspended. Please contact customer support.');
+        }
+    }
+
+    /**
      * Generate or fetch a CSRF token for forms
      */
     public function getCsrfToken(): string

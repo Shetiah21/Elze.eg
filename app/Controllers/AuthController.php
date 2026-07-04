@@ -21,13 +21,25 @@ class AuthController extends Controller
     }
 
     /**
+     * Resolve post-login redirect based on user role.
+     */
+    private function postLoginRedirect(): void
+    {
+        $user = $this->session->get('user');
+        if ($user && ($user['role'] ?? '') === 'admin') {
+            $this->redirect('/admin');
+        }
+        $this->redirect('/dashboard');
+    }
+
+    /**
      * Display or process user login
      */
     public function login(): void
     {
-        // If already logged in, redirect to dashboard
+        // If already logged in, redirect appropriately
         if ($this->session->has('user')) {
-            $this->redirect('/dashboard');
+            $this->postLoginRedirect();
         }
 
         if ($this->isPost()) {
@@ -53,7 +65,7 @@ class AuthController extends Controller
                 }
 
                 $this->session->setFlash('success', 'Welcome back to Elze.eg!');
-                $this->redirect('/dashboard');
+                $this->postLoginRedirect();
             } catch (Exception $e) {
                 if ($e->getMessage() === 'UNVERIFIED') {
                     // Send to OTP page

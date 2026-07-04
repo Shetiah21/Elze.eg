@@ -13,8 +13,13 @@ ON DUPLICATE KEY UPDATE name=VALUES(name);
 
 -- 2. Insert Admin User (Password is 'admin123')
 INSERT INTO users (id, name, email, password, role, status, email_verified_at) VALUES
-(1, 'Elze Admin', 'admin@elze.eg', '$2y$10$O0n7B1eRk2e.sMvIeE0kOeGZ71y8u1l.kOaJ.Gz90h.o/O1H3mOaC', 'admin', 'active', NOW())
-ON DUPLICATE KEY UPDATE email=VALUES(email);
+(1, 'Elze Admin', 'admin@elze.eg', '$2y$10$SCUVHSnFKSupw2q3hnuRGuR5YTCH3ei1gtUWr3Jow4WG.U6p.vTxa', 'admin', 'active', NOW())
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    password = VALUES(password),
+    role = VALUES(role),
+    status = VALUES(status),
+    email_verified_at = COALESCE(email_verified_at, VALUES(email_verified_at));
 
 -- 3. Insert Products
 INSERT INTO products (id, category_id, name, slug, description, base_price, size_chart_details) VALUES

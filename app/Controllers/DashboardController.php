@@ -31,22 +31,143 @@ class DashboardController extends Controller
     }
 
     /**
-     * Display the User Account Profile Dashboard
+     * Render a dashboard view with the premium dashboard layout.
      */
-    public function index(): void
+    private function renderDashboard(string $view, array $data = []): void
     {
-        // 1. Guard route: redirect to login if session is empty
+        $data['csrf_token'] = $this->session->getCsrfToken();
+        $this->render($view, $data, 'dashboard');
+    }
+
+    /**
+     * Require authenticated user or redirect to login.
+     */
+    private function requireUser(): array
+    {
         $user = $this->session->get('user');
         if (!$user) {
             $this->session->setFlash('error', 'You must be logged in to access your dashboard.');
             $this->redirect('/login');
         }
+        return $user;
+    }
 
-        // 2. Render dashboard index
-        $this->render('dashboard/index', [
+    /**
+     * Fetch overview statistics for the dashboard home.
+     */
+    private function getOverviewStats(int $userId): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT
+                COUNT(*) AS total_orders,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_orders,
+                SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS completed_orders
+            FROM orders WHERE user_id = :uid
+        ");
+        $stmt->execute(['uid' => $userId]);
+        $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        $addrStmt = $this->db->prepare("SELECT COUNT(*) FROM addresses WHERE user_id = :uid");
+        $addrStmt->execute(['uid' => $userId]);
+
+        return [
+            'total_orders' => (int) ($stats['total_orders'] ?? 0),
+            'pending_orders' => (int) ($stats['pending_orders'] ?? 0),
+            'completed_orders' => (int) ($stats['completed_orders'] ?? 0),
+            'saved_addresses' => (int) $addrStmt->fetchColumn(),
+        ];
+    }
+
+    /**
+     * Display the User Account Dashboard Overview
+     */
+    public function index(): void
+    {
+        $user = $this->requireUser();
+        $userId = (int) $user['id'];
+
+        $stats = $this->getOverviewStats($userId);
+
+        $recentStmt = $this->db->prepare("
+            SELECT * FROM orders WHERE user_id = :uid ORDER BY created_at DESC LIMIT 5
+        ");
+        $recentStmt->execute(['uid' => $userId]);
+        $recentOrders = $recentStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $defaultAddrStmt = $this->db->prepare("
+            SELECT * FROM addresses WHERE user_id = :uid ORDER BY is_default DESC, created_at DESC LIMIT 1
+        ");
+        $defaultAddrStmt->execute(['uid' => $userId]);
+        $defaultAddress = $defaultAddrStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        $userRow = $this->db->prepare("SELECT created_at FROM users WHERE id = :id");
+        $userRow->execute(['id' => $userId]);
+        $memberSince = $userRow->fetchColumn();
+
+        $phone = $defaultAddress['phone_number'] ?? null;
+
+        $this->renderDashboard('dashboard/index', [
             'title' => 'My Account | Elze.eg',
             'user' => $user,
-            'active_tab' => 'profile'
+            'active_tab' => 'dashboard',
+            'stats' => $stats,
+            'recent_orders' => $recentOrders,
+            'default_address' => $defaultAddress,
+            'member_since' => $memberSince,
+            'phone' => $phone,
+        ]);
+    }
+
+    /**
+     * Display user profile details (GET /dashboard/profile)
+     */
+    public function profile(): void
+    {
+        $user = $this->requireUser();
+        $userId = (int) $user['id'];
+
+        $defaultAddrStmt = $this->db->prepare("
+            SELECT phone_number FROM addresses WHERE user_id = :uid ORDER BY is_default DESC LIMIT 1
+        ");
+        $defaultAddrStmt->execute(['uid' => $userId]);
+        $phone = $defaultAddrStmt->fetchColumn() ?: null;
+
+        $userRow = $this->db->prepare("SELECT created_at FROM users WHERE id = :id");
+        $userRow->execute(['id' => $userId]);
+        $memberSince = $userRow->fetchColumn();
+
+        $this->renderDashboard('dashboard/profile', [
+            'title' => 'My Profile | Elze.eg',
+            'user' => $user,
+            'active_tab' => 'profile',
+            'phone' => $phone,
+            'member_since' => $memberSince,
+        ]);
+    }
+
+    /**
+     * Wishlist placeholder (GET /dashboard/wishlist)
+     */
+    public function wishlist(): void
+    {
+        $user = $this->requireUser();
+        $this->renderDashboard('dashboard/wishlist', [
+            'title' => 'Wishlist | Elze.eg',
+            'user' => $user,
+            'active_tab' => 'wishlist',
+        ]);
+    }
+
+    /**
+     * Settings placeholder (GET /dashboard/settings)
+     */
+    public function settings(): void
+    {
+        $user = $this->requireUser();
+        $this->renderDashboard('dashboard/settings', [
+            'title' => 'Settings | Elze.eg',
+            'user' => $user,
+            'active_tab' => 'settings',
         ]);
     }
 
@@ -55,18 +176,13 @@ class DashboardController extends Controller
      */
     public function orders(): void
     {
-        $user = $this->session->get('user');
-        if (!$user) {
-            $this->session->setFlash('error', 'You must be logged in to view your orders.');
-            $this->redirect('/login');
-        }
+        $user = $this->requireUser();
 
-        // Fetch user orders ordered by created_at DESC
         $stmt = $this->db->prepare("SELECT * FROM orders WHERE user_id = :user_id ORDER BY created_at DESC");
         $stmt->execute(['user_id' => $user['id']]);
         $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $this->render('dashboard/orders', [
+        $this->renderDashboard('dashboard/orders', [
             'title' => 'Order History | Elze.eg',
             'user' => $user,
             'orders' => $orders,
@@ -79,10 +195,7 @@ class DashboardController extends Controller
      */
     public function orderDetail(string $id): void
     {
-        $user = $this->session->get('user');
-        if (!$user) {
-            $this->redirect('/login');
-        }
+        $user = $this->requireUser();
 
         $orderId = (int)$id;
         $stmt = $this->db->prepare("SELECT * FROM orders WHERE id = :id LIMIT 1");
@@ -115,7 +228,7 @@ class DashboardController extends Controller
         $stmt->execute(['order_id' => $orderId]);
         $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $this->render('dashboard/order_detail', [
+        $this->renderDashboard('dashboard/order_detail', [
             'title' => 'Order Details #' . $order['order_number'] . ' | Elze.eg',
             'user' => $user,
             'order' => $order,
@@ -190,13 +303,12 @@ class DashboardController extends Controller
         $stmt->execute(['user_id' => $user['id']]);
         $addresses = $stmt->fetchAll();
 
-        $this->render('dashboard/addresses', [
+        $this->renderDashboard('dashboard/addresses', [
             'title' => 'My Saved Addresses | Elze.eg',
             'user' => $user,
             'addresses' => $addresses,
             'governorates' => $this->governorates,
             'active_tab' => 'addresses',
-            'csrf_token' => $this->session->getCsrfToken()
         ]);
     }
 
