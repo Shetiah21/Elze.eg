@@ -2,10 +2,34 @@
     <div>
         <a href="<?= $base ?>/admin/orders" class="admin-link" style="font-size: 13px;">← Back to Orders</a>
         <h2 style="margin-top: 8px;">Order <?= htmlspecialchars($order->order_number) ?></h2>
-        <span class="badge badge-<?= htmlspecialchars($order->status) ?>" id="detail-status-badge"><?= ucfirst(htmlspecialchars($order->status)) ?></span>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px;">
+            <span class="badge badge-<?= htmlspecialchars($order->status) ?>" id="detail-status-badge"><?= ucfirst(htmlspecialchars($order->status)) ?></span>
+            <span class="badge badge-pay-<?= htmlspecialchars($order->payment_status) ?>" id="detail-pay-status-badge">
+                <?= ucfirst(str_replace('_', ' ', htmlspecialchars($order->payment_status))) ?>
+            </span>
+            <?php if ($order->payment_method === 'instapay'): ?>
+                <span class="instapay-badge-sm">⚡ InstaPay</span>
+            <?php endif; ?>
+        </div>
     </div>
     <div class="admin-actions" id="detail-action-buttons">
-        <?php if ($order->status === 'pending'): ?>
+        <?php if ($order->payment_method === 'instapay' && $order->payment_status === 'pending_verification'): ?>
+            <!-- InstaPay Payment Verification Buttons -->
+            <button type="button"
+                    class="btn-admin-primary btn-verify-payment"
+                    data-order-id="<?= $order->id ?>"
+                    data-order-number="<?= htmlspecialchars($order->order_number) ?>"
+                    data-reference="<?= htmlspecialchars($order->payment_reference ?? '') ?>">
+                ✓ Verify Payment
+            </button>
+            <button type="button"
+                    class="btn-admin-sm btn-admin-danger btn-reject-payment"
+                    data-order-id="<?= $order->id ?>"
+                    data-order-number="<?= htmlspecialchars($order->order_number) ?>"
+                    data-reference="<?= htmlspecialchars($order->payment_reference ?? '') ?>">
+                ✕ Reject Payment
+            </button>
+        <?php elseif ($order->status === 'pending'): ?>
             <button type="button" class="btn-admin-primary btn-accept-order"
                     data-order-id="<?= $order->id ?>"
                     data-order-number="<?= htmlspecialchars($order->order_number) ?>">Accept Order</button>
@@ -47,6 +71,84 @@
     </section>
 
     <section class="admin-panel">
+        <!-- ── InstaPay Payment Panel ─────────────────────────────── -->
+        <?php if ($order->payment_method === 'instapay'): ?>
+        <div class="instapay-admin-panel" style="background: linear-gradient(135deg, #f8f7ff 0%, #f0effe 100%); border: 1.5px solid rgba(15,12,59,0.12); border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                <span style="font-size: 22px;">⚡</span>
+                <h3 style="margin: 0; font-family: var(--font-headers); color: var(--color-brand-blue); font-size: 16px;">InstaPay Payment Details</h3>
+            </div>
+            <dl class="admin-dl">
+                <dt>Payment Method</dt>
+                <dd><span class="instapay-badge-sm" style="font-size: 12px;">⚡ InstaPay</span></dd>
+
+                <dt>Payment Status</dt>
+                <dd>
+                    <span class="badge badge-pay-<?= htmlspecialchars($order->payment_status) ?>" id="detail-pay-badge-inner">
+                        <?= ucfirst(str_replace('_', ' ', htmlspecialchars($order->payment_status))) ?>
+                    </span>
+                </dd>
+
+                <dt>Transaction Reference</dt>
+                <dd>
+                    <?php if (!empty($order->payment_reference)): ?>
+                        <code class="ref-code" style="font-size: 14px; letter-spacing: 0.05em;"><?= htmlspecialchars($order->payment_reference) ?></code>
+                    <?php else: ?>
+                        <span style="color: var(--color-charcoal-light); font-size: 12px; font-style: italic;">Not yet submitted</span>
+                    <?php endif; ?>
+                </dd>
+
+                <?php if (!empty($order->payment_date)): ?>
+                <dt>Payment Submitted</dt>
+                <dd style="font-size: 13px;"><?= date('M d, Y H:i', strtotime($order->payment_date)) ?></dd>
+                <?php endif; ?>
+
+                <?php if (!empty($order->payment_verified_at)): ?>
+                <dt>Verified At</dt>
+                <dd style="font-size: 13px; color: var(--color-success);"><?= date('M d, Y H:i', strtotime($order->payment_verified_at)) ?></dd>
+                <?php endif; ?>
+
+                <?php if (!empty($order->verified_by)): ?>
+                <dt>Verified By</dt>
+                <dd style="font-size: 13px;">Admin ID #<?= (int)$order->verified_by ?></dd>
+                <?php endif; ?>
+            </dl>
+
+            <?php if ($order->payment_status === 'pending_verification'): ?>
+                <div style="margin-top: 14px; padding: 12px 14px; background: #fff8e1; border: 1px solid #ffd54f; border-radius: 8px; font-size: 12px; color: #7a6000;">
+                    ⏳ <strong>Action Required:</strong> Verify the transaction reference <strong><?= htmlspecialchars($order->payment_reference ?? '') ?></strong>
+                    against your InstaPay merchant dashboard before approving.
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 14px;" id="instapay-verify-actions">
+                    <button type="button"
+                            class="btn-admin-primary btn-verify-payment"
+                            style="flex: 1; justify-content: center;"
+                            data-order-id="<?= $order->id ?>"
+                            data-order-number="<?= htmlspecialchars($order->order_number) ?>"
+                            data-reference="<?= htmlspecialchars($order->payment_reference ?? '') ?>">
+                        ✓ Verify Payment
+                    </button>
+                    <button type="button"
+                            class="btn-admin-sm btn-admin-danger btn-reject-payment"
+                            data-order-id="<?= $order->id ?>"
+                            data-order-number="<?= htmlspecialchars($order->order_number) ?>"
+                            data-reference="<?= htmlspecialchars($order->payment_reference ?? '') ?>">
+                        ✕ Reject
+                    </button>
+                </div>
+            <?php elseif ($order->payment_status === 'paid'): ?>
+                <div style="margin-top: 14px; padding: 10px 14px; background: #e8f5e9; border-radius: 8px; font-size: 12px; color: #2e7d32; display: flex; align-items: center; gap: 8px;">
+                    ✅ <strong>Payment verified and confirmed.</strong>
+                </div>
+            <?php elseif ($order->payment_status === 'failed'): ?>
+                <div style="margin-top: 14px; padding: 10px 14px; background: #fce4ec; border-radius: 8px; font-size: 12px; color: #b71c1c; display: flex; align-items: center; gap: 8px;">
+                    ❌ <strong>Payment reference was rejected.</strong>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <!-- ── Order Status Update ─────────────────────────────────── -->
         <h3 class="admin-panel-title">Update Order Status</h3>
         <form action="<?= $base ?>/admin/orders/<?= $order->id ?>" method="POST" class="admin-form">
             <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($csrf_token) ?>">
@@ -77,9 +179,14 @@
             </div>
         </form>
 
+        <?php if ($order->payment_method !== 'instapay'): ?>
         <dl class="admin-dl" style="margin-top: 24px;">
             <dt>Payment Method</dt><dd><?= strtoupper(htmlspecialchars($order->payment_method)) ?></dd>
             <dt>Payment Status</dt><dd><span class="badge badge-pay-<?= htmlspecialchars($order->payment_status) ?>"><?= ucfirst(htmlspecialchars($order->payment_status)) ?></span></dd>
+        </dl>
+        <?php endif; ?>
+
+        <dl class="admin-dl" style="margin-top: 16px;">
             <dt>Subtotal</dt><dd><?= number_format($order->subtotal, 2) ?> EGP</dd>
             <?php if ($order->discount_amount > 0): ?>
                 <dt>Discount</dt><dd>-<?= number_format($order->discount_amount, 2) ?> EGP</dd>
@@ -132,7 +239,7 @@
             <button type="button" class="btn-admin-secondary" id="order-modal-cancel">Cancel</button>
             <button type="button" class="btn-admin-primary" id="order-modal-confirm">
                 <span class="btn-text">Confirm</span>
-                <span class="btn-loading" hidden>Processing...</span>
+                <span class="btn-loading" hidden>Processing…</span>
             </button>
         </div>
     </div>

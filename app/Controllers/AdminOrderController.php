@@ -22,7 +22,8 @@ class AdminOrderController extends AdminController
     public function index(): void
     {
         $this->requireAdmin();
-        $status = trim($this->getQueryParams()['status'] ?? '');
+        $status        = trim($this->getQueryParams()['status'] ?? '');
+        $paymentStatus = trim($this->getQueryParams()['payment_status'] ?? '');
 
         $sql = "
             SELECT o.*, u.name AS customer_name, u.email AS customer_email
@@ -30,25 +31,43 @@ class AdminOrderController extends AdminController
             JOIN users u ON u.id = o.user_id
         ";
         $params = [];
+        $conditions = [];
 
         if ($status !== '' && in_array($status, $this->validStatuses, true)) {
-            $sql .= " WHERE o.status = :status";
+            $conditions[] = 'o.status = :status';
             $params['status'] = $status;
         }
 
-        $sql .= " ORDER BY FIELD(o.status, 'pending', 'processing', 'shipped', 'delivered', 'cancelled'), o.created_at DESC";
+        // Allow filtering by payment_status (e.g., pending_verification for InstaPay)
+        if ($paymentStatus !== '') {
+            $conditions[] = 'o.payment_status = :payment_status';
+            $params['payment_status'] = $paymentStatus;
+        }
+
+        if (!empty($conditions)) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+
+        $sql .= " ORDER BY FIELD(o.payment_status, 'pending_verification', 'pending', 'paid', 'failed'),
+                          FIELD(o.status, 'pending', 'processing', 'shipped', 'delivered', 'cancelled'),
+                          o.created_at DESC";
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
 
         $pendingCount = (int) $this->db->query("SELECT COUNT(*) FROM orders WHERE status = 'pending'")->fetchColumn();
+        // Count InstaPay orders awaiting payment verification
+        $pendingVerificationCount = (int) $this->db->query("SELECT COUNT(*) FROM orders WHERE payment_status = 'pending_verification'")->fetchColumn();
 
         $this->renderAdmin('admin/orders/index', [
-            'title' => 'Orders | Admin',
-            'active_section' => 'orders',
-            'orders' => $stmt->fetchAll(PDO::FETCH_ASSOC),
-            'current_status' => $status,
-            'statuses' => $this->validStatuses,
-            'pending_count' => $pendingCount,
+            'title'                    => 'Orders | Admin',
+            'active_section'           => 'orders',
+            'orders'                   => $stmt->fetchAll(PDO::FETCH_ASSOC),
+            'current_status'           => $status,
+            'current_payment_status'   => $paymentStatus,
+            'statuses'                 => $this->validStatuses,
+            'pending_count'            => $pendingCount,
+            'pending_verification_count' => $pendingVerificationCount,
         ]);
     }
 
@@ -106,9 +125,9 @@ class AdminOrderController extends AdminController
         try {
             $order = $this->orderService->acceptOrder((int) $id);
             $this->json([
-                'success' => true,
-                'message' => 'Order accepted and moved to Processing.',
-                'status' => $order->status,
+                'success'  => true,
+                'message'  => 'Order accepted and moved to Processing.',
+                'status'   => $order->status,
                 'order_id' => $order->id,
             ]);
         } catch (Exception $e) {
@@ -131,10 +150,74 @@ class AdminOrderController extends AdminController
         try {
             $order = $this->orderService->rejectOrder((int) $id);
             $this->json([
-                'success' => true,
-                'message' => 'Order has been rejected and cancelled.',
-                'status' => $order->status,
+                'success'  => true,
+                'message'  => 'Order has been rejected and cancelled.',
+                'status'   => $order->status,
                 'order_id' => $order->id,
+            ]);
+        } catch (Exception $e) {
+            $this->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // InstaPay Payment Verification Actions
+    // ─────────────────────────────────────────────────────────────────
+
+    /**
+     * POST /admin/orders/{id}/verify-payment
+     * Admin verifies an InstaPay payment reference → paid + processing.
+     */
+    public function verifyPayment(string $id): void
+    {
+        $adminUser = $this->requireAdmin();
+        if (!$this->isPost()) {
+            $this->json(['success' => false, 'message' => 'Invalid request method.'], 405);
+        }
+
+        $data = $this->getPostData();
+        if (!$this->session->validateCsrfToken($data['csrf_token'] ?? null)) {
+            $this->json(['success' => false, 'message' => 'CSRF validation failed.'], 403);
+        }
+
+        try {
+            $order = $this->orderService->verifyInstapayPayment((int) $id, (int) $adminUser['id']);
+            $this->json([
+                'success'        => true,
+                'message'        => 'Payment verified. Order is now Processing.',
+                'status'         => $order->status,
+                'payment_status' => $order->payment_status,
+                'order_id'       => $order->id,
+            ]);
+        } catch (Exception $e) {
+            $this->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * POST /admin/orders/{id}/reject-payment
+     * Admin rejects an InstaPay reference → failed + cancelled.
+     */
+    public function rejectPayment(string $id): void
+    {
+        $this->requireAdmin();
+        if (!$this->isPost()) {
+            $this->json(['success' => false, 'message' => 'Invalid request method.'], 405);
+        }
+
+        $data = $this->getPostData();
+        if (!$this->session->validateCsrfToken($data['csrf_token'] ?? null)) {
+            $this->json(['success' => false, 'message' => 'CSRF validation failed.'], 403);
+        }
+
+        try {
+            $order = $this->orderService->rejectInstapayPayment((int) $id);
+            $this->json([
+                'success'        => true,
+                'message'        => 'Payment rejected. Order has been cancelled.',
+                'status'         => $order->status,
+                'payment_status' => $order->payment_status,
+                'order_id'       => $order->id,
             ]);
         } catch (Exception $e) {
             $this->json(['success' => false, 'message' => $e->getMessage()], 422);

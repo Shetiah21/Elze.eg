@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Core\Controller;
 use App\Core\Session;
 use App\Core\Database;
+use App\Config\Config;
 use App\Services\CartService;
 use App\Services\Payment\PaymentGatewayFactory;
 use App\Core\EventDispatcher;
@@ -371,14 +372,24 @@ class CheckoutController extends Controller
             $this->redirect('/dashboard');
         }
 
-        if ($order->payment_method !== 'instapay' || $order->payment_status === 'paid') {
+        // If already paid or verified, redirect to order detail
+        if ($order->payment_method !== 'instapay' || in_array($order->payment_status, ['paid', 'pending_verification'], true)) {
             $this->redirect('/dashboard/orders/' . $order->id);
         }
 
+        // Load InstaPay merchant config for display in the payment page
+        $config = Config::getInstance();
+        $instapayConfig = [
+            'merchant_name' => $config->get('instapay.merchant_name', 'Elze.eg'),
+            'ipa_address'   => $config->get('instapay.ipa_address', 'elze@instapay'),
+            'phone_number'  => $config->get('instapay.phone_number', ''),
+        ];
+
         $this->render('checkout/instapay', [
-            'title' => 'InstaPay Instructions | Elze.eg',
-            'order' => $order,
-            'csrf_token' => $this->session->getCsrfToken()
+            'title'         => 'InstaPay Payment | Elze.eg',
+            'order'         => $order,
+            'instapay'      => $instapayConfig,
+            'csrf_token'    => $this->session->getCsrfToken()
         ]);
     }
 
@@ -409,20 +420,26 @@ class CheckoutController extends Controller
             $this->redirect('/dashboard');
         }
 
+        // Duplicate submission prevention: reject if reference already submitted
+        if (in_array($order->payment_status, ['pending_verification', 'paid'], true)) {
+            $this->session->setFlash('info', 'Payment reference already submitted. Awaiting admin verification.');
+            $this->redirect('/dashboard/orders/' . $order->id);
+        }
+
         $reference = trim($data['reference_code'] ?? '');
-        if (empty($reference) || !preg_match('/^[0-9]{6,12}$/', $reference)) {
-            $this->session->setFlash('error', 'Invalid transaction reference code. Must be between 6 and 12 digits.');
+        if (empty($reference) || !preg_match('/^[A-Za-z0-9]{6,20}$/', $reference)) {
+            $this->session->setFlash('error', 'Invalid transaction reference. Must be 6–20 alphanumeric characters.');
             $this->redirect('/checkout/instapay/' . $id);
         }
 
         try {
-            // Re-invoke Payment Strategy with reference code
+            // Invoke Payment Strategy with reference code — sets to pending_verification
             $strategy = PaymentGatewayFactory::create('instapay');
             if ($strategy->pay($order, ['reference_code' => $reference])) {
-                $this->session->setFlash('success', 'InstaPay payment reference submitted! Your order is now in processing.');
+                $this->session->setFlash('success', '✓ Payment reference submitted successfully! Our team will verify your payment within 1–2 business hours.');
                 $this->redirect('/dashboard/orders/' . $order->id);
             } else {
-                throw new Exception("Unable to save InstaPay reference code details.");
+                throw new Exception('Unable to save payment reference. Please try again.');
             }
         } catch (Exception $e) {
             $this->session->setFlash('error', $e->getMessage());

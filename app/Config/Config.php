@@ -26,6 +26,17 @@ class Config
             ],
             'mail' => [
                 'log_path' => dirname(dirname(__DIR__)) . '/storage/logs/mail.log'
+            ],
+            // -----------------------------------------------------------------
+            // InstaPay Configuration (LOCAL DEVELOPMENT MODE)
+            // TODO: Replace mock values with real InstaPay merchant credentials
+            //       when integrating with the official InstaPay API.
+            // -----------------------------------------------------------------
+            'instapay' => [
+                'merchant_name' => 'Elze.eg',
+                'ipa_address'   => 'elze@instapay',
+                'phone_number'  => '01000000000',
+                'mode'          => 'mock', // 'mock' | 'live'
             ]
         ];
 

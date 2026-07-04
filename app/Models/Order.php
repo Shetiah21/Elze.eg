@@ -18,11 +18,17 @@ class Order extends Model
     public float $total_amount = 0.00;
     public string $status = 'pending'; // pending, processing, shipped, delivered, cancelled
     public string $payment_method = 'cod'; // cod, instapay
-    public string $payment_status = 'pending'; // pending, paid, failed
+    public string $payment_status = 'pending'; // pending, pending_verification, paid, failed
     public int $shipping_address_id = 0;
     public ?string $tracking_number = null;
     public ?string $payment_reference = null;
     public ?string $notes = null;
+
+    // InstaPay verification metadata (populated by migration_instapay.sql)
+    public ?string $payment_date = null;        // Timestamp when customer submitted ref
+    public ?string $payment_verified_at = null; // Timestamp when admin verified payment
+    public ?int $verified_by = null;            // Admin user ID who verified
+
     public ?string $created_at = null;
     public ?string $updated_at = null;
 }

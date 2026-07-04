@@ -119,6 +119,10 @@ $router->get('/admin/orders/{id}', [\App\Controllers\AdminOrderController::class
 $router->post('/admin/orders/{id}', [\App\Controllers\AdminOrderController::class, 'detail']);
 $router->post('/admin/orders/{id}/accept', [\App\Controllers\AdminOrderController::class, 'accept']);
 $router->post('/admin/orders/{id}/reject', [\App\Controllers\AdminOrderController::class, 'reject']);
+// InstaPay payment verification actions
+$router->post('/admin/orders/{id}/verify-payment', [\App\Controllers\AdminOrderController::class, 'verifyPayment']);
+$router->post('/admin/orders/{id}/reject-payment', [\App\Controllers\AdminOrderController::class, 'rejectPayment']);
+
 
 // Admin Coupons
 $router->get('/admin/coupons', [\App\Controllers\AdminCouponController::class, 'index']);

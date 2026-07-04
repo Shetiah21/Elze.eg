@@ -116,6 +116,133 @@ class OrderManagementService
         return $order;
     }
 
+    // ──────────────────────────────────────────────────────────────────────
+    // InstaPay Payment Verification Methods
+    // ──────────────────────────────────────────────────────────────────────
+
+    /**
+     * Admin verifies an InstaPay payment reference.
+     * Sets payment_status = 'paid', records who verified and when,
+     * then calls acceptOrder() to transition status → processing and deduct stock.
+     *
+     * TODO: In production, before marking as paid, call the InstaPay API
+     *       to cross-check the submitted reference number against the
+     *       actual transaction from the gateway database.
+     *
+     * @param int $orderId
+     * @param int $adminId  The admin user's ID (for audit trail)
+     * @return Order
+     * @throws Exception
+     */
+    public function verifyInstapayPayment(int $orderId, int $adminId): Order
+    {
+        $order = Order::find($orderId);
+        if (!$order) {
+            throw new Exception('Order not found.');
+        }
+
+        if ($order->payment_method !== 'instapay') {
+            throw new Exception('This order was not placed via InstaPay.');
+        }
+
+        if ($order->payment_status !== 'pending_verification') {
+            throw new Exception('This order is not awaiting payment verification. Current status: ' . $order->payment_status . '.');
+        }
+
+        if (empty($order->payment_reference)) {
+            throw new Exception('No payment reference found for this order.');
+        }
+
+        $this->db->beginTransaction();
+        try {
+            // Mark payment as verified
+            $order->payment_status      = 'paid';
+            $order->payment_verified_at = date('Y-m-d H:i:s');
+            $order->verified_by         = $adminId;
+
+            // Also handle inventory + order status transition via acceptOrder logic
+            // Reset status to 'pending' so acceptOrder() can transition to 'processing'
+            if ($order->status !== 'pending') {
+                $order->status = 'pending';
+            }
+
+            if (!$order->save()) {
+                throw new Exception('Failed to update payment verification status.');
+            }
+
+            // Validate and deduct stock, set status = processing
+            $items = $this->getOrderItems($orderId);
+            if (!$this->isInventoryDeducted($order)) {
+                $this->validateStock($items);
+                $this->deductInventory($items);
+                $this->markInventoryDeducted($order);
+            }
+
+            $order->status = 'processing';
+            if (!$order->save()) {
+                throw new Exception('Failed to set order status to processing.');
+            }
+
+            $this->db->commit();
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $e;
+        }
+
+        $customer = $this->getCustomerEmail($order->user_id);
+        $this->logStatusNotification(
+            $customer['email'],
+            $order->order_number,
+            'processing',
+            'verified and payment confirmed. Your order is now being processed'
+        );
+
+        return $order;
+    }
+
+    /**
+     * Admin rejects an InstaPay payment reference (invalid / unverifiable).
+     * Sets payment_status = 'failed', order status = 'cancelled'.
+     *
+     * @param int $orderId
+     * @return Order
+     * @throws Exception
+     */
+    public function rejectInstapayPayment(int $orderId): Order
+    {
+        $order = Order::find($orderId);
+        if (!$order) {
+            throw new Exception('Order not found.');
+        }
+
+        if ($order->payment_method !== 'instapay') {
+            throw new Exception('This order was not placed via InstaPay.');
+        }
+
+        if ($order->payment_status !== 'pending_verification') {
+            throw new Exception('Only orders awaiting payment verification can be rejected. Current status: ' . $order->payment_status . '.');
+        }
+
+        $order->payment_status = 'failed';
+        $order->status         = 'cancelled';
+
+        if (!$order->save()) {
+            throw new Exception('Failed to reject InstaPay payment.');
+        }
+
+        $customer = $this->getCustomerEmail($order->user_id);
+        $this->logStatusNotification(
+            $customer['email'],
+            $order->order_number,
+            'cancelled',
+            'payment reference could not be verified. The order has been cancelled. Please contact support if you believe this is an error'
+        );
+
+        return $order;
+    }
+
     /**
      * Update order status with transition validation and inventory restore on cancel.
      */

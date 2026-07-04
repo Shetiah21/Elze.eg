@@ -107,12 +107,18 @@ try {
         throw new Exception("InstapayPaymentStrategy set payment status improperly without ref code.");
     }
     
-    echo "Simulating InstaPay reference validation code verify (Ref: '283749301')...\n";
+    echo "Simulating InstaPay reference submission (Ref: '283749301')...\n";
     $strategyInsta->pay($order, ['reference_code' => '283749301']);
-    if ($order->payment_reference !== '283749301' || $order->payment_status !== 'paid' || $order->status !== 'processing') {
-        throw new Exception("InstapayPaymentStrategy failed to update payment reference code details.");
+    // BUG FIX: Should now be 'pending_verification', NOT 'paid' immediately
+    if ($order->payment_reference !== '283749301'
+        || $order->payment_status !== 'pending_verification'
+        || $order->status !== 'pending') {
+        throw new Exception(
+            "InstapayPaymentStrategy: expected payment_status='pending_verification' and status='pending'. "
+            . "Got payment_status='{$order->payment_status}' status='{$order->status}'"
+        );
     }
-    echo "[SUCCESS] InstapayPaymentStrategy reference submission verified.\n\n";
+    echo "[SUCCESS] InstapayPaymentStrategy sets pending_verification correctly (admin review required).\n\n";
 
     // --- TEST 3: Observer Pattern (Event Dispatcher) ---
     echo "--- Test 3: Observer Event Dispatcher ---\n";
