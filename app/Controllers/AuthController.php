@@ -109,21 +109,29 @@ class AuthController extends Controller
 
             // Server-side form validations
             if (empty($name) || empty($email) || empty($password) || empty($confirmPassword)) {
+                $this->session->setFlash('old_name', $name);
+                $this->session->setFlash('old_email', $email);
                 $this->session->setFlash('error', 'Please fill out all required fields.');
                 $this->redirect('/register');
             }
 
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $this->session->setFlash('old_name', $name);
+                $this->session->setFlash('old_email', $email);
                 $this->session->setFlash('error', 'Please enter a valid email address.');
                 $this->redirect('/register');
             }
 
-            if (strlen($password) < 6) {
-                $this->session->setFlash('error', 'Password must be at least 6 characters long.');
+            if (!$this->isPasswordStrong($password)) {
+                $this->session->setFlash('old_name', $name);
+                $this->session->setFlash('old_email', $email);
+                $this->session->setFlash('error', 'Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.');
                 $this->redirect('/register');
             }
 
             if ($password !== $confirmPassword) {
+                $this->session->setFlash('old_name', $name);
+                $this->session->setFlash('old_email', $email);
                 $this->session->setFlash('error', 'Passwords do not match.');
                 $this->redirect('/register');
             }
@@ -135,6 +143,8 @@ class AuthController extends Controller
                     $this->redirect('/verify-otp');
                 }
             } catch (Exception $e) {
+                $this->session->setFlash('old_name', $name);
+                $this->session->setFlash('old_email', $email);
                 $this->session->setFlash('error', $e->getMessage());
                 $this->redirect('/register');
             }
@@ -255,11 +265,19 @@ class AuthController extends Controller
             $confirmPassword = $data['confirm_password'] ?? '';
 
             if (!$this->session->validateCsrfToken($data['csrf_token'] ?? null)) {
+                $this->session->setFlash('old_otp', $otp);
                 $this->session->setFlash('error', 'CSRF validation failed.');
                 $this->redirect('/reset-password');
             }
 
+            if (!$this->isPasswordStrong($password)) {
+                $this->session->setFlash('old_otp', $otp);
+                $this->session->setFlash('error', 'Password must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.');
+                $this->redirect('/reset-password');
+            }
+
             if ($password !== $confirmPassword) {
+                $this->session->setFlash('old_otp', $otp);
                 $this->session->setFlash('error', 'Passwords do not match.');
                 $this->redirect('/reset-password');
             }
@@ -270,6 +288,7 @@ class AuthController extends Controller
                 $this->session->setFlash('success', 'Your password has been reset successfully. You can now log in.');
                 $this->redirect('/login');
             } catch (Exception $e) {
+                $this->session->setFlash('old_otp', $otp);
                 $this->session->setFlash('error', $e->getMessage());
                 $this->redirect('/reset-password');
             }
@@ -280,6 +299,34 @@ class AuthController extends Controller
             'email' => $email,
             'csrf_token' => $this->session->getCsrfToken()
         ]);
+    }
+
+    /**
+     * Validate password complexity requirements:
+     * - At least 8 characters
+     * - At least one uppercase letter
+     * - At least one lowercase letter
+     * - At least one number
+     * - At least one special character
+     */
+    private function isPasswordStrong(string $password): bool
+    {
+        if (strlen($password) < 8) {
+            return false;
+        }
+        if (!preg_match('/[A-Z]/', $password)) {
+            return false;
+        }
+        if (!preg_match('/[a-z]/', $password)) {
+            return false;
+        }
+        if (!preg_match('/[0-9]/', $password)) {
+            return false;
+        }
+        if (!preg_match('/[^A-Za-z0-9]/', $password)) {
+            return false;
+        }
+        return true;
     }
 
     /**

@@ -43,6 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 return;
             }
+            if (form.id === 'reset-password-form' && !validateResetPasswordForm(form)) {
+                e.preventDefault();
+                return;
+            }
 
             const submitBtn = form.querySelector('.btn-submit');
             if (submitBtn && !submitBtn.disabled) {
@@ -53,6 +57,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+    // ── Real-time field-level validation (input & blur) ──
+    const registerForm = document.getElementById('register-form');
+    if (registerForm) {
+        const fields = ['name', 'email', 'password', 'confirm_password'];
+        fields.forEach(fieldId => {
+            const input = registerForm.querySelector('#' + fieldId);
+            if (input) {
+                input.addEventListener('blur', () => validateRegisterField(registerForm, fieldId));
+                input.addEventListener('input', () => {
+                    // Clear error on typing so it doesn't feel nagging
+                    const errorEl = registerForm.querySelector(`.field-error[data-for="${fieldId}"]`);
+                    if (errorEl && errorEl.textContent) {
+                        // Re-validate silently after a short delay
+                        clearTimeout(input._validationTimer);
+                        input._validationTimer = setTimeout(() => validateRegisterField(registerForm, fieldId), 400);
+                    }
+                });
+            }
+        });
+    }
+
+    const resetForm = document.getElementById('reset-password-form');
+    if (resetForm) {
+        const fields = ['otp', 'password', 'confirm_password'];
+        fields.forEach(fieldId => {
+            const input = resetForm.querySelector('#' + fieldId);
+            if (input) {
+                input.addEventListener('blur', () => validateResetField(resetForm, fieldId));
+                input.addEventListener('input', () => {
+                    const errorEl = resetForm.querySelector(`.field-error[data-for="${fieldId}"]`);
+                    if (errorEl && errorEl.textContent) {
+                        clearTimeout(input._validationTimer);
+                        input._validationTimer = setTimeout(() => validateResetField(resetForm, fieldId), 400);
+                    }
+                });
+            }
+        });
+    }
 });
 
 function validateRegisterForm(form) {
@@ -75,8 +118,13 @@ function validateRegisterForm(form) {
         isValid = false;
     }
 
-    if (!password.value || password.value.length < 6) {
-        showFieldError(form, 'password', 'Password must be at least 6 characters.');
+    const hasUpperCase = /[A-Z]/.test(password.value);
+    const hasLowerCase = /[a-z]/.test(password.value);
+    const hasNumbers = /\d/.test(password.value);
+    const hasNonalphas = /[^A-Za-z0-9]/.test(password.value);
+
+    if (!password.value || password.value.length < 8 || !hasUpperCase || !hasLowerCase || !hasNumbers || !hasNonalphas) {
+        showFieldError(form, 'password', 'Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.');
         isValid = false;
     }
 
@@ -106,4 +154,145 @@ function clearFieldErrors(form) {
     form.querySelectorAll('.auth-input.input-error').forEach(el => {
         el.classList.remove('input-error');
     });
+}
+
+function validateResetPasswordForm(form) {
+    clearFieldErrors(form);
+
+    const otp = form.querySelector('#otp');
+    const password = form.querySelector('#password');
+    const confirmPassword = form.querySelector('#confirm_password');
+    let isValid = true;
+
+    if (otp && (!otp.value.trim() || !/^\d{6}$/.test(otp.value.trim()))) {
+        showFieldError(form, 'otp', 'Please enter a valid 6-digit recovery code.');
+        isValid = false;
+    }
+
+    const hasUpperCase = /[A-Z]/.test(password.value);
+    const hasLowerCase = /[a-z]/.test(password.value);
+    const hasNumbers = /\d/.test(password.value);
+    const hasNonalphas = /[^A-Za-z0-9]/.test(password.value);
+
+    if (!password.value || password.value.length < 8 || !hasUpperCase || !hasLowerCase || !hasNumbers || !hasNonalphas) {
+        showFieldError(form, 'password', 'Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.');
+        isValid = false;
+    }
+
+    if (password.value !== confirmPassword.value) {
+        showFieldError(form, 'confirm_password', 'Passwords do not match.');
+        isValid = false;
+    }
+
+    return isValid;
+}
+
+/**
+ * Validate a single field in the register form (for real-time feedback)
+ */
+function validateRegisterField(form, fieldId) {
+    const errorEl = form.querySelector(`.field-error[data-for="${fieldId}"]`);
+    const inputEl = form.querySelector('#' + fieldId);
+    if (!errorEl || !inputEl) return;
+
+    // Clear previous state
+    errorEl.textContent = '';
+    inputEl.classList.remove('input-error');
+
+    const val = inputEl.value;
+
+    switch (fieldId) {
+        case 'name':
+            if (val.trim().length > 0 && val.trim().length < 2) {
+                showFieldError(form, 'name', 'Name must be at least 2 characters.');
+            }
+            break;
+
+        case 'email':
+            if (val.trim().length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
+                showFieldError(form, 'email', 'Please enter a valid email address.');
+            }
+            break;
+
+        case 'password':
+            if (val.length > 0) {
+                const missing = [];
+                if (val.length < 8) missing.push('8+ characters');
+                if (!/[A-Z]/.test(val)) missing.push('uppercase letter');
+                if (!/[a-z]/.test(val)) missing.push('lowercase letter');
+                if (!/\d/.test(val)) missing.push('number');
+                if (!/[^A-Za-z0-9]/.test(val)) missing.push('special character');
+                if (missing.length > 0) {
+                    showFieldError(form, 'password', 'Missing: ' + missing.join(', ') + '.');
+                }
+            }
+            // Also re-validate confirm_password if it has a value
+            const confirmEl = form.querySelector('#confirm_password');
+            if (confirmEl && confirmEl.value.length > 0 && confirmEl.value !== val) {
+                showFieldError(form, 'confirm_password', 'Passwords do not match.');
+            } else if (confirmEl && confirmEl.value.length > 0) {
+                const cErr = form.querySelector('.field-error[data-for="confirm_password"]');
+                if (cErr) cErr.textContent = '';
+                confirmEl.classList.remove('input-error');
+            }
+            break;
+
+        case 'confirm_password':
+            const pwEl = form.querySelector('#password');
+            if (val.length > 0 && pwEl && val !== pwEl.value) {
+                showFieldError(form, 'confirm_password', 'Passwords do not match.');
+            }
+            break;
+    }
+}
+
+/**
+ * Validate a single field in the reset-password form (for real-time feedback)
+ */
+function validateResetField(form, fieldId) {
+    const errorEl = form.querySelector(`.field-error[data-for="${fieldId}"]`);
+    const inputEl = form.querySelector('#' + fieldId);
+    if (!errorEl || !inputEl) return;
+
+    errorEl.textContent = '';
+    inputEl.classList.remove('input-error');
+
+    const val = inputEl.value;
+
+    switch (fieldId) {
+        case 'otp':
+            if (val.trim().length > 0 && !/^\d{6}$/.test(val.trim())) {
+                showFieldError(form, 'otp', 'Must be exactly 6 digits.');
+            }
+            break;
+
+        case 'password':
+            if (val.length > 0) {
+                const missing = [];
+                if (val.length < 8) missing.push('8+ characters');
+                if (!/[A-Z]/.test(val)) missing.push('uppercase letter');
+                if (!/[a-z]/.test(val)) missing.push('lowercase letter');
+                if (!/\d/.test(val)) missing.push('number');
+                if (!/[^A-Za-z0-9]/.test(val)) missing.push('special character');
+                if (missing.length > 0) {
+                    showFieldError(form, 'password', 'Missing: ' + missing.join(', ') + '.');
+                }
+            }
+            const confirmEl = form.querySelector('#confirm_password');
+            if (confirmEl && confirmEl.value.length > 0 && confirmEl.value !== val) {
+                showFieldError(form, 'confirm_password', 'Passwords do not match.');
+            } else if (confirmEl && confirmEl.value.length > 0) {
+                const cErr = form.querySelector('.field-error[data-for="confirm_password"]');
+                if (cErr) cErr.textContent = '';
+                confirmEl.classList.remove('input-error');
+            }
+            break;
+
+        case 'confirm_password':
+            const pwEl = form.querySelector('#password');
+            if (val.length > 0 && pwEl && val !== pwEl.value) {
+                showFieldError(form, 'confirm_password', 'Passwords do not match.');
+            }
+            break;
+    }
 }

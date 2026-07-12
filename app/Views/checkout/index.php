@@ -374,4 +374,20 @@ function applyCoupon() {
         console.error('Coupon error:', err);
     });
 }
+
+// ── Prevent checkout double-submission ──
+(function() {
+    const checkoutForm = document.getElementById('checkout-form');
+    if (checkoutForm) {
+        checkoutForm.addEventListener('submit', function() {
+            const btn = checkoutForm.querySelector('.checkout-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Processing Order...';
+                btn.style.opacity = '0.7';
+                btn.style.cursor = 'not-allowed';
+            }
+        });
+    }
+})();
 </script>
